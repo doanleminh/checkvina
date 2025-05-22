@@ -1,34 +1,30 @@
-
 from flask import Flask
 import threading
 import time
 import os
 import requests
+import datetime
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone, timedelta
 
 URL = "https://doithe365.com/doithecao"
-TELEGRAM_CHAT_ID = "5768955670"
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
-CHECK_INTERVAL = 30  # giây
-
-tz = timezone(timedelta(hours=7))  # UTC+7
 app = Flask(__name__)
 
 
 def send_telegram(rate):
-    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+    token = os.getenv("TELEGRAM_TOKEN")
+    chat_id = "5768955670"
+    if not token or not chat_id:
         print("Thiếu TELEGRAM_TOKEN hoặc TELEGRAM_CHAT_ID")
         return
 
     message = f"Chiết khấu Vinaphone 500K hiện tại là {rate}%\nhttps://doithe365.com/doithecao"
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
+    data = {"chat_id": chat_id, "text": message}
 
     try:
         response = requests.post(url, data=data)
         if response.status_code == 200:
-            print("Đã gửi tin nhắn Telegram!")
+            print("Đã gửi Telegram.")
         else:
             print("Gửi Telegram thất bại:", response.text)
     except Exception as e:
@@ -36,13 +32,14 @@ def send_telegram(rate):
 
 
 def check_discount():
+    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC+7')}] Đang kiểm tra chiết khấu...")
     try:
-        res = requests.get(URL)
+        res = requests.get(URL, timeout=10)
         soup = BeautifulSoup(res.text, "html.parser")
 
         tab = soup.find("div", id="VINAPHONE")
         if not tab:
-            print("Không tìm thấy tab VINAPHONE")
+            print("Không tìm thấy tab VINAPHONE.")
             return
 
         table = tab.find("table")
@@ -54,7 +51,7 @@ def check_discount():
                 break
 
         if index_500k == -1:
-            print("Không tìm thấy cột 500K")
+            print("Không tìm thấy cột 500K.")
             return
 
         rows = table.find_all("tr")
@@ -66,19 +63,17 @@ def check_discount():
                 if rate <= 9.0:
                     send_telegram(rate)
                 else:
-                    print("Chưa đạt điều kiện gửi Telegram.")
+                    print("Không đạt điều kiện gửi Telegram.")
                 break
+        print("Hoàn tất kiểm tra.\n")
     except Exception as e:
         print("Lỗi khi kiểm tra chiết khấu:", e)
 
 
 def run_loop():
     while True:
-        now = datetime.now(tz).strftime("%Y-%m-%d %H:%M:%S UTC+7")
-        print(f"[{now}] Đang kiểm tra chiết khấu...")
         check_discount()
-        print(f"[{now}] Hoàn tất kiểm tra.\n")
-        time.sleep(CHECK_INTERVAL)
+        time.sleep(30)
 
 
 @app.route("/")
@@ -86,8 +81,7 @@ def home():
     return "Vinaphone monitor is running!"
 
 
-# Khởi động thread chạy ngầm cho kiểm tra chiết khấu
-threading.Thread(target=run_loop, daemon=True).start()
+threading.Thread(target=run_loop).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
