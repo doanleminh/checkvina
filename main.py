@@ -80,13 +80,15 @@ def check_discount():
 def run_loop():
     while True:
         check_discount()
+        print(f"==> Lặp lại lúc {datetime.now(timezone(timedelta(hours=7))).strftime('%H:%M:%S')} (UTC+7)")
         time.sleep(CHECK_INTERVAL)
 
 @app.route("/")
 def home():
     return "Vinaphone monitor is running!"
 
-threading.Thread(target=run_loop).start()
+# Dùng daemon=True để đảm bảo thread không bị kill khi chạy nền trên Render
+threading.Thread(target=run_loop, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
