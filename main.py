@@ -64,7 +64,7 @@ def check_discount():
 def run_loop():
     while True:
         check_discount()
-        time.sleep(60)
+        time.sleep(30)
 
 @app.route("/")
 def home():
