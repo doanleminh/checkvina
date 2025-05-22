@@ -1,96 +1,65 @@
 from flask import Flask
 import threading
 import time
-import os
 import requests
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from shutil import which
+from bs4 import BeautifulSoup
+import os
 
 app = Flask(__name__)
+
+TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
+TELEGRAM_CHAT_ID = "5768955670"
 URL = "https://doithe365.com/doithecao"
 
 def send_telegram(rate):
-    token = os.getenv("TELEGRAM_TOKEN")
-    chat_id = "5768955670"
-    if not token or not chat_id:
-        print("Thieu TELEGRAM_TOKEN hoac TELEGRAM_CHAT_ID")
+    if not TELEGRAM_TOKEN or not TELEGRAM_CHAT_ID:
+        print("Missing TELEGRAM_TOKEN or TELEGRAM_CHAT_ID")
         return
-    message = "Chiet khau Vinaphone 500K hien tai la {}%\nhttps://doithe365.com/doithecao".format(rate)
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = {"chat_id": chat_id, "text": message}
-    try:
-        response = requests.post(url, data=data)
-        if response.status_code == 200:
-            print("Da gui tin nhan Telegram!")
-        else:
-            print("Gui Telegram that bai:", response.text)
-    except Exception as e:
-        print("Loi gui Telegram:", e)
+
+    message = f"Chiet khau Vinaphone 500K hien tai la {rate}%\nhttps://doithe365.com/doithecao"
+    response = requests.post(
+        f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+        data={"chat_id": TELEGRAM_CHAT_ID, "text": message}
+    )
+
+    if response.status_code == 200:
+        print("Telegram message sent successfully.")
+    else:
+        print("Failed to send Telegram message:", response.text)
 
 def check_discount():
-    print("=== Kiem tra chiet khau ===")
-    chrome_path = which("chromium")
-    if not chrome_path:
-        raise EnvironmentError("Khong tim thay chromium trong moi truong!")
-
-    driver_path = which("chromedriver")
-    if not driver_path:
-        raise EnvironmentError("Khong tim thay chromedriver trong moi truong!")
-
-    options = Options()
-    options.binary_location = chrome_path
-    options.add_argument("--headless")
-    options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-
-    service = Service(driver_path)
-    driver = webdriver.Chrome(service=service, options=options)
-
     try:
-        driver.get(URL)
-        WebDriverWait(driver, 15).until(EC.element_to_be_clickable((By.ID, "VINAPHONE-tab"))).click()
-        WebDriverWait(driver, 15).until(EC.presence_of_element_located((By.ID, "VINAPHONE")))
-        table = driver.find_element(By.XPATH, '//div[@id="VINAPHONE"]//table')
-        headers = table.find_elements(By.TAG_NAME, "th")
-        print("Header Titles:")
-        for i, header in enumerate(headers):
-            print(" - Cot {}: {}".format(i, header.text))
+        res = requests.get(URL)
+        soup = BeautifulSoup(res.text, "html.parser")
 
+        tab = soup.find("div", id="VINAPHONE")
+        if not tab:
+            print("Cannot find VINAPHONE tab.")
+            return
+
+        table = tab.find("table")
+        headers = table.find_all("th")
         index_500k = -1
-        for i, header in enumerate(headers):
-            if "500" in header.text:
+        for i, th in enumerate(headers):
+            if "500" in th.text:
                 index_500k = i
                 break
 
         if index_500k == -1:
-            print("Khong tim thay cot 500K")
+            print("500K column not found.")
             return
 
-        rows = table.find_elements(By.TAG_NAME, "tr")
+        rows = table.find_all("tr")
         for row in rows:
-            cells = row.find_elements(By.TAG_NAME, "td")
-            if not cells:
-                continue
-            if "Thanh vien" in cells[0].text:
-                rate_text = cells[index_500k].text.strip().replace("%", "").replace(",", ".")
-                rate = float(rate_text)
-                print("Chiet khau 500K (Thanh vien): {}%".format(rate))
+            cols = row.find_all("td")
+            if cols and "Thành viên" in cols[0].text:
+                rate = float(cols[index_500k].text.strip().replace("%", "").replace(",", "."))
+                print(f"Chiết khấu 500K (Thành viên): {rate}%")
                 if rate <= 12.0:
                     send_telegram(rate)
-                else:
-                    print("Chua dat dieu kien gui Telegram.")
                 break
     except Exception as e:
-        print("Loi xu ly:", e)
-    finally:
-        driver.quit()
+        print("Error during scraping:", e)
 
 def run_loop():
     while True:
@@ -99,9 +68,9 @@ def run_loop():
 
 @app.route("/")
 def home():
-    return "Vinaphone monitor dang chay!"
+    return "Vinaphone monitor is running!"
 
-threading.Thread(target=run_loop).start()
+threading.Thread(target=run_loop, daemon=True).start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
