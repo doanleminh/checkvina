@@ -32,8 +32,7 @@ def send_telegram(rate):
 
 
 def check_discount():
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC+7')
-    print(f"[{now}] Đang kiểm tra chiết khấu...", flush=True)
+    print(f"Đang kiểm tra chiết khấu...", flush=True)
     try:
         res = requests.get(URL)
         soup = BeautifulSoup(res.text, "html.parser")
