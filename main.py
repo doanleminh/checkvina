@@ -32,14 +32,15 @@ def send_telegram(rate):
 
 
 def check_discount():
-    print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC+7')}] Đang kiểm tra chiết khấu...")
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC+7')
+    print(f"[{now}] Đang kiểm tra chiết khấu...", flush=True)
     try:
         res = requests.get(URL)
         soup = BeautifulSoup(res.text, "html.parser")
 
         tab = soup.find("div", id="VINAPHONE")
         if not tab:
-            print("Không tìm thấy tab VINAPHONE.")
+            print("Không tìm thấy tab VINAPHONE.", flush=True)
             return
 
         table = tab.find("table")
@@ -51,7 +52,7 @@ def check_discount():
                 break
 
         if index_500k == -1:
-            print("Không tìm thấy cột 500K.")
+            print("Không tìm thấy cột 500K.", flush=True)
             return
 
         rows = table.find_all("tr")
@@ -60,16 +61,16 @@ def check_discount():
             if cols and "Thành viên" in cols[0].text:
                 rate_text = cols[index_500k].text.strip().replace("%", "").replace(",", ".")
                 rate = float(rate_text)
-                print(f"Chiết khấu 500K (Thành viên): {rate}%")
+                print(f"Chiết khấu 500K (Thành viên): {rate}%", flush=True)
                 if rate <= 9.0:
                     send_telegram(rate)
                 else:
-                    print("Không đạt điều kiện gửi Telegram.")
+                    print("Không đạt điều kiện gửi Telegram.", flush=True)
                 break
     except Exception as e:
-        print("Lỗi khi xử lý:", e)
+        print(f"Lỗi khi xử lý: {e}", flush=True)
     finally:
-        print("Hoàn tất kiểm tra\n")
+        print("Hoàn tất kiểm tra\n", flush=True)
 
 
 def run_loop():
