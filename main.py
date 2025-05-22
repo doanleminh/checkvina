@@ -34,7 +34,7 @@ def send_telegram(rate):
 def check_discount():
     print(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S UTC+7')}] Đang kiểm tra chiết khấu...")
     try:
-        res = requests.get(URL, timeout=10)
+        res = requests.get(URL)
         soup = BeautifulSoup(res.text, "html.parser")
 
         tab = soup.find("div", id="VINAPHONE")
@@ -58,16 +58,18 @@ def check_discount():
         for row in rows:
             cols = row.find_all("td")
             if cols and "Thành viên" in cols[0].text:
-                rate = float(cols[index_500k].text.strip().replace("%", "").replace(",", "."))
+                rate_text = cols[index_500k].text.strip().replace("%", "").replace(",", ".")
+                rate = float(rate_text)
                 print(f"Chiết khấu 500K (Thành viên): {rate}%")
                 if rate <= 9.0:
                     send_telegram(rate)
                 else:
                     print("Không đạt điều kiện gửi Telegram.")
                 break
-        print("Hoàn tất kiểm tra.\n")
     except Exception as e:
-        print("Lỗi khi kiểm tra chiết khấu:", e)
+        print("Lỗi khi xử lý:", e)
+    finally:
+        print("Hoàn tất kiểm tra\n")
 
 
 def run_loop():
