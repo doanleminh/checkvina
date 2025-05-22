@@ -55,7 +55,7 @@ def check_discount():
             if cols and "Thành viên" in cols[0].text:
                 rate = float(cols[index_500k].text.strip().replace("%", "").replace(",", "."))
                 print(f"Chiết khấu 500K (Thành viên): {rate}%")
-                if rate <= 12.0:
+                if rate <= 9.0:
                     send_telegram(rate)
                 break
     except Exception as e:
